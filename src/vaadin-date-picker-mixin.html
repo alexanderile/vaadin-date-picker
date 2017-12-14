@@ -303,7 +303,8 @@ This program is available under Apache License Version 2.0, available at https:/
         '_validateInput(_selectedDate, _minDate, _maxDate)',
         '_selectedDateChanged(_selectedDate, i18n.formatDate)',
         '_focusedDateChanged(_focusedDate, i18n.formatDate)',
-        '_announceFocusedDate(_focusedDate, opened, _ignoreAnnounce)'
+        '_announceFocusedDate(_focusedDate, opened, _ignoreAnnounce)',
+        '_readonlyChanged(readonly)'
       ];
     }
 
@@ -526,6 +527,11 @@ This program is available under Apache License Version 2.0, available at https:/
         this._focus();
       }
 
+      if (this.focusElement) {
+        this.focusElement.blur();
+        this._overlayContent.focus();
+      }
+
       this.updateStyles();
 
       this._ignoreAnnounce = false;
@@ -597,8 +603,16 @@ This program is available under Apache License Version 2.0, available at https:/
      * @return {boolean} True if the value is valid and sets the `invalid` flag appropriately
      */
     validate(value) {
+      const setReadonly = readonly => {
+        if (Vaadin.DatePickerHelper._mobile() && this.focusElement) {
+          this.focusElement.readonly = readonly;
+        }
+      };
+      setReadonly(false);
       value = value !== undefined ? value : this._inputValue;
-      return !(this.invalid = !this.checkValidity(value));
+      const validity = !(this.invalid = !this.checkValidity(value));
+      setReadonly(true);
+      return validity;
     }
 
     /**
@@ -612,7 +626,7 @@ This program is available under Apache License Version 2.0, available at https:/
     checkValidity(value) {
       var inputValid = !value || (this._selectedDate && value === this.i18n.formatDate(this._selectedDate));
       var minMaxValid = !this._selectedDate ||
-      Vaadin.DatePickerHelper._dateAllowed(this._selectedDate, this._minDate, this._maxDate);
+        Vaadin.DatePickerHelper._dateAllowed(this._selectedDate, this._minDate, this._maxDate);
 
       var inputValidity = true;
       if (this._inputElement) {
@@ -760,6 +774,17 @@ This program is available under Apache License Version 2.0, available at https:/
     _announceFocusedDate(_focusedDate, opened, _ignoreAnnounce) {
       if (opened && !_ignoreAnnounce) {
         this._overlayContent.announceFocusedDate();
+      }
+    }
+
+    _readonlyChanged(readonly) {
+      // on mobile, make sure readonly is always true.
+      if (Vaadin.DatePickerHelper._mobile() && !readonly) {
+        // Workaround: during at least one of the tests, focusElement is undefined.
+        if (this.focusElement) {
+          // doing this directly on the date-picker results in an infinite event loop.
+          this.focusElement.readonly = true;
+        }
       }
     }
   };
